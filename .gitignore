@@ -13,6 +13,11 @@ printer_data.db-shm
 printer_data.db.backup_*
 *.migrated_backup
 
+# Legacy CSV data (migrated to SQLite)
+printer_data.csv.backup
+printer_page_counts.csv
+printer_page_counts.csv.backup
+
 # Logs
 logs/
 
