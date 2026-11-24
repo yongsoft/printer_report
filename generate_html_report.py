@@ -1,30 +1,28 @@
-import csv
-import yaml  # Change from json to yaml
+import yaml
 import logging
 import os
+import json
 from datetime import datetime
 from logging.handlers import TimedRotatingFileHandler
 
+import db
+
 # Get the directory containing the script
 script_dir = os.path.dirname(os.path.abspath(__file__))
-# Construct absolute path to config file
-config_path = os.path.join(script_dir, 'config.yaml')  # Change from config.json to config.yaml
+config_path = os.path.join(script_dir, 'config.yaml')
 
 # Load configuration
 with open(config_path, 'r') as f:
-    config = yaml.safe_load(f)  # Change from json.load to yaml.safe_load
+    config = yaml.safe_load(f)
 
 # Configure logging
 if config['logging']['enabled']:
-    # Create logs directory if it doesn't exist
     log_dir = os.path.join(script_dir, config['logging']['directory'])
     os.makedirs(log_dir, exist_ok=True)
-    
-    # Configure the logger
+
     logger = logging.getLogger('report_logger')
     logger.setLevel(getattr(logging, config['logging']['level']))
-    
-    # Create a timed rotating file handler
+
     log_file = os.path.join(log_dir, 'report.log')
     handler = TimedRotatingFileHandler(
         log_file,
@@ -35,79 +33,89 @@ if config['logging']['enabled']:
     handler.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(message)s'))
     logger.addHandler(handler)
 
-# Construct absolute paths for all files
+logger = logging.getLogger('report_logger')
+
+# Construct absolute paths
 CSV_FILE = os.path.join(script_dir, config['csv_file_name'])
 HTML_FILE = os.path.join(script_dir, config['report']['output_dir'], config['report']['output_file'])
 TEMPLATE_FILE = os.path.join(script_dir, config['report']['template'])
 
-def read_csv_data():
-    """Reads data from the CSV file and returns a list of dictionaries."""
-    data = {}
-    try:
-        with open(CSV_FILE, 'r') as csvfile:
-            reader = csv.reader(csvfile)
-            header = next(reader)  # Skip the header row
-            for row in reader:
-                date, total_page_count, net_increase = row
-                date = str(date)  # Ensure date is treated as a string
-                net_increase = int(net_increase)
-                if date in data:
-                    data[date]['net_increase'] += net_increase
-                    data[date]['total_page_count'] = int(total_page_count)  # Keep the latest total_page_count
-                else:
-                    data[date] = {
-                        'date': date,
-                        'total_page_count': int(total_page_count),
-                        'net_increase': net_increase
-                    }
-    except FileNotFoundError:
-        error_msg = f"Error: CSV file '{CSV_FILE}' not found."
+
+def compute_summary(data):
+    """Compute summary statistics for the KPI dashboard."""
+    if not data:
+        return {
+            'total_pages': 0,
+            'total_days': 0,
+            'active_days': 0,
+            'avg_daily': 0,
+            'busiest_day_count': 0,
+            'busiest_day_date': '',
+            'first_date': '',
+        }
+
+    total_pages = data[-1]['total_page_count'] - data[0]['total_page_count'] + data[0]['net_increase']
+    total_days = len(data)
+    active_days = sum(1 for d in data if d['net_increase'] > 0)
+    avg_daily = sum(d['net_increase'] for d in data) / total_days if total_days > 0 else 0
+
+    busiest = max(data, key=lambda d: d['net_increase'])
+    first_date = data[0]['date']
+
+    return {
+        'total_pages': total_pages,
+        'total_days': total_days,
+        'active_days': active_days,
+        'avg_daily': round(avg_daily, 1),
+        'busiest_day_count': busiest['net_increase'],
+        'busiest_day_date': busiest['date'],
+        'first_date': first_date,
+    }
+
+
+def generate_report():
+    """Main report generation flow."""
+    # Initialize database
+    db.init_db(script_dir)
+    db.ensure_schema()
+    db.migrate_from_csv(CSV_FILE)
+
+    # Read all data
+    data = db.read_all_data()
+
+    if not data:
+        error_msg = "No data available to generate report."
         logger.error(error_msg)
         print(error_msg)
-        return None
-    
-    # Convert the dictionary to a list of dictionaries
-    return list(data.values())
+        return
 
-def generate_html_table(data):
-    """Generates an HTML table with a bar chart and data switching from the given data."""
-    if not data:
-        return "<p>No data available.</p>"
+    logger.info(f"Loaded {len(data)} records from database")
 
+    # Compute summary stats
+    summary = compute_summary(data)
+
+    # Read template
     try:
-        with open(TEMPLATE_FILE, 'r') as template_file:
-            template = template_file.read()
-
-        # Generate table rows
-        table_rows = ''
-        for item in data:
-            table_rows += f"""
-                <tr>
-                    <td>{item['date']}</td>
-                    <td>{item['net_increase']}</td>
-                    <td>{item['total_page_count']}</td>
-                </tr>
-            """
-
-        # Replace placeholders in the template
-        # Replace placeholders with actual data
-        html = template.replace('{table_rows}', table_rows)
-        # Convert data to JSON string for JavaScript
-        import json
-        html = html.replace('{chart_data}', json.dumps(data))
-        return html
-
+        with open(TEMPLATE_FILE, 'r') as f:
+            template = f.read()
     except FileNotFoundError:
         error_msg = f"Error: Template file '{TEMPLATE_FILE}' not found."
         logger.error(error_msg)
         print(error_msg)
-        return "<p>Error: Template file not found.</p>"
+        return
 
-def write_html_file(html):
-    """Writes the HTML content to a file."""
+    # Inject data into template
+    html = template.replace('{chart_data}', json.dumps(data))
+    html = html.replace('{summary_data}', json.dumps(summary))
+    html = html.replace('{generated_at}', datetime.now().strftime('%Y-%m-%d %H:%M'))
+
+    # Ensure output directory exists
+    os.makedirs(os.path.dirname(HTML_FILE), exist_ok=True)
+
+    # Write HTML
     try:
-        with open(HTML_FILE, 'w') as htmlfile:
-            htmlfile.write(html)
+        with open(HTML_FILE, 'w', encoding='utf-8') as f:
+            f.write(html)
         success_msg = f"HTML report generated successfully at '{HTML_FILE}'"
         logger.info(success_msg)
         print(success_msg)
@@ -116,8 +124,6 @@ def write_html_file(html):
         logger.error(error_msg)
         print(error_msg)
 
+
 if __name__ == "__main__":
-    data = read_csv_data()
-    if data:
-        html = generate_html_table(data)
-        write_html_file(html)
+    generate_report()

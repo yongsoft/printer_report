@@ -1,0 +1,20 @@
+# Python
+__pycache__/
+*.pyc
+venv/
+
+# OS
+.DS_Store
+
+# Runtime data
+printer_data.db
+printer_data.db-wal
+printer_data.db-shm
+printer_data.db.backup_*
+*.migrated_backup
+
+# Logs
+logs/
+
+# WorkBuddy internal
+.workbuddy-ai/

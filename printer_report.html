@@ -1,134 +1,835 @@
 <!DOCTYPE html>
-<html>
+<html lang="zh-CN">
 <head>
-    <title>Printer Page Count Report</title>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Printer Usage Report</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
-        table { border-collapse: collapse; width: 100%; }
-        th, td { border: 1px solid black; padding: 8px; text-align: left; }
-        th { background-color: #f2f2f2; }
-        .chart-container { width: 80%; margin: auto; }
-        .button-container { text-align: center; margin-bottom: 10px; }
+        :root {
+            --bg: #f0f2f5;
+            --card-bg: #ffffff;
+            --text: #1a1a2e;
+            --text-secondary: #6b7280;
+            --border: #e5e7eb;
+            --primary: #3b82f6;
+            --primary-light: #eff6ff;
+            --primary-dark: #2563eb;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --shadow: 0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.06);
+            --shadow-lg: 0 10px 15px -3px rgba(0,0,0,0.08), 0 4px 6px -2px rgba(0,0,0,0.05);
+            --radius: 12px;
+            --radius-sm: 8px;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.6;
+            padding: 24px;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 28px;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+
+        .header h1 {
+            font-size: 28px;
+            font-weight: 700;
+            color: var(--text);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .header h1 .icon {
+            width: 36px; height: 36px;
+            background: var(--primary);
+            border-radius: 10px;
+            display: flex; align-items: center; justify-content: center;
+            color: white; font-size: 20px;
+        }
+
+        .header .report-date {
+            font-size: 14px;
+            color: var(--text-secondary);
+            background: var(--card-bg);
+            padding: 8px 16px;
+            border-radius: var(--radius-sm);
+            box-shadow: var(--shadow);
+        }
+
+        /* KPI Cards */
+        .kpi-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+            margin-bottom: 28px;
+        }
+
+        .kpi-card {
+            background: var(--card-bg);
+            border-radius: var(--radius);
+            padding: 20px;
+            box-shadow: var(--shadow);
+            transition: transform 0.15s ease, box-shadow 0.15s ease;
+        }
+
+        .kpi-card:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-lg);
+        }
+
+        .kpi-card .label {
+            font-size: 13px;
+            color: var(--text-secondary);
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            margin-bottom: 8px;
+        }
+
+        .kpi-card .value {
+            font-size: 28px;
+            font-weight: 700;
+            color: var(--text);
+        }
+
+        .kpi-card .sub {
+            font-size: 12px;
+            color: var(--text-secondary);
+            margin-top: 4px;
+        }
+
+        .kpi-card .icon-circle {
+            width: 40px; height: 40px;
+            border-radius: 10px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 18px;
+            margin-bottom: 12px;
+        }
+
+        .icon-blue { background: #dbeafe; color: #2563eb; }
+        .icon-green { background: #d1fae5; color: #059669; }
+        .icon-amber { background: #fef3c7; color: #d97706; }
+        .icon-purple { background: #ede9fe; color: #7c3aed; }
+
+        /* Main content layout */
+        .main-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 20px;
+        }
+
+        .card {
+            background: var(--card-bg);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            padding: 24px;
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+
+        .card-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--text);
+        }
+
+        /* Filter bar */
+        .filter-bar {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .filter-bar select {
+            padding: 8px 14px;
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            font-size: 14px;
+            font-family: inherit;
+            background: var(--card-bg);
+            color: var(--text);
+            cursor: pointer;
+            transition: border-color 0.15s;
+        }
+
+        .filter-bar select:hover { border-color: var(--primary); }
+        .filter-bar select:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-light); }
+
+        .filter-bar .btn {
+            padding: 8px 16px;
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            font-size: 14px;
+            font-family: inherit;
+            background: var(--card-bg);
+            color: var(--text-secondary);
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+
+        .filter-bar .btn:hover { border-color: var(--primary); color: var(--primary); }
+        .filter-bar .btn.active {
+            background: var(--primary);
+            color: white;
+            border-color: var(--primary);
+        }
+
+        /* Chart container */
+        .chart-wrapper {
+            position: relative;
+            width: 100%;
+        }
+
+        .chart-wrapper.canvas-h {
+            height: 320px;
+        }
+
+        .chart-wrapper.canvas-h-tall {
+            height: 380px;
+        }
+
+        /* Data table */
+        .data-table-wrapper {
+            overflow-x: auto;
+            border-radius: var(--radius-sm);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 14px;
+        }
+
+        thead th {
+            background: #f9fafb;
+            color: var(--text-secondary);
+            font-weight: 600;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            padding: 12px 16px;
+            text-align: left;
+            border-bottom: 2px solid var(--border);
+            cursor: pointer;
+            user-select: none;
+            white-space: nowrap;
+            transition: background 0.15s;
+        }
+
+        thead th:hover { background: #f3f4f6; }
+        thead th .sort-arrow { font-size: 10px; opacity: 0.4; margin-left: 4px; }
+        thead th.sorted .sort-arrow { opacity: 1; color: var(--primary); }
+
+        tbody td {
+            padding: 11px 16px;
+            border-bottom: 1px solid #f3f4f6;
+            color: var(--text);
+        }
+
+        tbody tr:hover { background: #f9fafb; }
+        tbody tr:last-child td { border-bottom: none; }
+
+        .badge {
+            display: inline-block;
+            padding: 3px 10px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .badge-zero { background: #f3f4f6; color: #9ca3af; }
+        .badge-low { background: #dbeafe; color: #2563eb; }
+        .badge-mid { background: #fef3c7; color: #d97706; }
+        .badge-high { background: #fce7f3; color: #db2777; }
+        .badge-peak { background: #fee2e2; color: #dc2626; }
+
+        /* Pagination */
+        .pagination {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 16px;
+            margin-top: 16px;
+        }
+
+        .pagination button {
+            padding: 8px 16px;
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            background: var(--card-bg);
+            color: var(--text-secondary);
+            cursor: pointer;
+            font-size: 14px;
+            font-family: inherit;
+            transition: all 0.15s;
+        }
+
+        .pagination button:hover:not(:disabled) {
+            border-color: var(--primary);
+            color: var(--primary);
+        }
+
+        .pagination button:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+
+        .pagination .page-info {
+            font-size: 13px;
+            color: var(--text-secondary);
+        }
+
+        /* Empty state */
+        .empty-state {
+            text-align: center;
+            padding: 48px 20px;
+            color: var(--text-secondary);
+        }
+
+        .empty-state .emoji { font-size: 48px; margin-bottom: 12px; }
+        .empty-state .msg { font-size: 15px; }
+
+        /* Two-column layout for charts */
+        .charts-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        @media (max-width: 900px) {
+            .charts-row { grid-template-columns: 1fr; }
+        }
+
+        /* Tab pills */
+        .tabs {
+            display: flex;
+            gap: 4px;
+            background: #f3f4f6;
+            border-radius: var(--radius-sm);
+            padding: 4px;
+        }
+
+        .tabs .tab {
+            padding: 8px 18px;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--text-secondary);
+            cursor: pointer;
+            transition: all 0.15s;
+            border: none;
+            background: transparent;
+        }
+
+        .tabs .tab:hover { color: var(--text); }
+
+        .tabs .tab.active {
+            background: var(--card-bg);
+            color: var(--primary);
+            box-shadow: 0 1px 2px rgba(0,0,0,0.08);
+        }
+
+        .footer {
+            text-align: center;
+            color: var(--text-secondary);
+            font-size: 13px;
+            margin-top: 28px;
+            padding-top: 20px;
+            border-top: 1px solid var(--border);
+        }
     </style>
 </head>
 <body>
-    <h1>Printer Page Count Report</h1>
-
-    <div class="button-container">
-        <button onclick="switchData('net_increase')">Net Increase</button>
-        <button onclick="switchData('total_page_count')">Total Page Count</button>
+    <div class="header">
+        <h1><span class="icon">🖨️</span> Printer Usage Report</h1>
+        <div class="report-date">Generated: 2026-11-22 23:37</div>
     </div>
 
-    <div class="chart-container">
-        <canvas id="myChart"></canvas>
+    <!-- KPI Dashboard -->
+    <div class="kpi-grid" id="kpiGrid">
+        <div class="kpi-card">
+            <div class="icon-circle icon-blue">📄</div>
+            <div class="label">Total Pages (All Time)</div>
+            <div class="value" id="kpiTotalPages">—</div>
+            <div class="sub" id="kpiTotalPagesSub"></div>
+        </div>
+        <div class="kpi-card">
+            <div class="icon-circle icon-green">📊</div>
+            <div class="label">Avg Daily Pages</div>
+            <div class="value" id="kpiAvgDaily">—</div>
+            <div class="sub" id="kpiAvgDailySub"></div>
+        </div>
+        <div class="kpi-card">
+            <div class="icon-circle icon-amber">🔥</div>
+            <div class="label">Busiest Day</div>
+            <div class="value" id="kpiBusiestDay">—</div>
+            <div class="sub" id="kpiBusiestDaySub"></div>
+        </div>
+        <div class="kpi-card">
+            <div class="icon-circle icon-purple">📅</div>
+            <div class="label">Active Days</div>
+            <div class="value" id="kpiActiveDays">—</div>
+            <div class="sub" id="kpiActiveDaysSub"></div>
+        </div>
     </div>
 
-    <table>
-        <thead>
-            <tr>
-                <th>Date</th>
-                <th>Net Increase</th>
-                <th>Total Page Count</th>
-            </tr>
-        </thead>
-        <tbody>
-            
-                <tr>
-                    <td>2025-02-16</td>
-                    <td>2</td>
-                    <td>10394</td>
-                </tr>
-            
-                <tr>
-                    <td>2025-02-17</td>
-                    <td>0</td>
-                    <td>10394</td>
-                </tr>
-            
-                <tr>
-                    <td>2025-02-18</td>
-                    <td>0</td>
-                    <td>10394</td>
-                </tr>
-            
-                <tr>
-                    <td>2025-02-19</td>
-                    <td>21</td>
-                    <td>10415</td>
-                </tr>
-            
-                <tr>
-                    <td>2025-02-20</td>
-                    <td>0</td>
-                    <td>10416</td>
-                </tr>
-            
-                <tr>
-                    <td>2025-02-21</td>
-                    <td>0</td>
-                    <td>10416</td>
-                </tr>
-            
-                <tr>
-                    <td>2025-02-22</td>
-                    <td>14</td>
-                    <td>10431</td>
-                </tr>
-            
-                <tr>
-                    <td>2025-02-23</td>
-                    <td>18</td>
-                    <td>10449</td>
-                </tr>
-            
-        </tbody>
-    </table>
+    <!-- Dashboard Charts (30-day default) -->
+    <div class="charts-row" style="margin-bottom: 20px;">
+        <div class="card">
+            <div class="card-header">
+                <div class="card-title">📈 Last 30 Days — Daily Print Volume</div>
+                <div class="tabs">
+                    <button class="tab active" onclick="switchDashboardMetric('net_increase', this)">Daily Pages</button>
+                    <button class="tab" onclick="switchDashboardMetric('total_page_count', this)">Cumulative</button>
+                </div>
+            </div>
+            <div class="chart-wrapper canvas-h">
+                <canvas id="dashboardChart"></canvas>
+            </div>
+        </div>
+        <div class="card">
+            <div class="card-header">
+                <div class="card-title">📦 Monthly Summary</div>
+            </div>
+            <div class="chart-wrapper canvas-h">
+                <canvas id="monthlyChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- Historical Data with Year/Month Filter -->
+    <div class="card" style="margin-bottom: 20px;">
+        <div class="card-header">
+            <div class="card-title">🗂️ Historical Data</div>
+            <div class="filter-bar">
+                <select id="yearFilter" onchange="applyFilter()">
+                    <option value="all">All Years</option>
+                </select>
+                <select id="monthFilter" onchange="applyFilter()">
+                    <option value="all">All Months</option>
+                </select>
+                <button class="btn active" onclick="setViewMode('daily', this)" id="btnDaily">Daily</button>
+                <button class="btn" onclick="setViewMode('monthly', this)" id="btnMonthly">Monthly</button>
+                <button class="btn" onclick="resetFilter()">Reset</button>
+            </div>
+        </div>
+        <div class="chart-wrapper canvas-h-tall" style="margin-bottom: 16px;">
+            <canvas id="historyChart"></canvas>
+        </div>
+        <div class="data-table-wrapper">
+            <table>
+                <thead>
+                    <tr>
+                        <th onclick="sortBy('date')">Date <span class="sort-arrow">▼</span></th>
+                        <th onclick="sortBy('net_increase')">Pages Printed <span class="sort-arrow"></span></th>
+                        <th onclick="sortBy('total_page_count')">Total Counter <span class="sort-arrow"></span></th>
+                    </tr>
+                </thead>
+                <tbody id="dataTableBody"></tbody>
+            </table>
+        </div>
+        <div class="pagination">
+            <button onclick="changePage('prev')" id="prevBtn">&lt; Previous</button>
+            <span class="page-info" id="pageInfo"></span>
+            <button onclick="changePage('next')" id="nextBtn">Next &gt;</button>
+        </div>
+    </div>
+
+    <div class="footer">
+        Printer Usage Monitoring System &middot; Data stored in SQLite (WAL mode) with automatic backups
+    </div>
 
     <script>
-    var data = [{'date': '2025-02-16', 'total_page_count': 10394, 'net_increase': 2}, {'date': '2025-02-17', 'total_page_count': 10394, 'net_increase': 0}, {'date': '2025-02-18', 'total_page_count': 10394, 'net_increase': 0}, {'date': '2025-02-19', 'total_page_count': 10415, 'net_increase': 21}, {'date': '2025-02-20', 'total_page_count': 10416, 'net_increase': 0}, {'date': '2025-02-21', 'total_page_count': 10416, 'net_increase': 0}, {'date': '2025-02-22', 'total_page_count': 10431, 'net_increase': 14}, {'date': '2025-02-23', 'total_page_count': 10449, 'net_increase': 18}];
-    var currentData = 'net_increase';
+        const rawData = [{"date": "2025-02-15", "total_page_count": 10392, "net_increase": 0}, {"date": "2025-02-16", "total_page_count": 10394, "net_increase": 2}, {"date": "2025-02-17", "total_page_count": 10394, "net_increase": 0}, {"date": "2025-02-18", "total_page_count": 10394, "net_increase": 0}, {"date": "2025-02-19", "total_page_count": 10415, "net_increase": 21}, {"date": "2025-02-20", "total_page_count": 10416, "net_increase": 0}, {"date": "2025-02-21", "total_page_count": 10416, "net_increase": 0}, {"date": "2025-02-22", "total_page_count": 10431, "net_increase": 14}, {"date": "2025-02-23", "total_page_count": 10449, "net_increase": 18}, {"date": "2025-02-24", "total_page_count": 10449, "net_increase": 0}, {"date": "2025-02-25", "total_page_count": 10454, "net_increase": 5}, {"date": "2025-02-26", "total_page_count": 10454, "net_increase": 0}, {"date": "2025-02-27", "total_page_count": 10478, "net_increase": 6}, {"date": "2025-02-28", "total_page_count": 10485, "net_increase": 7}, {"date": "2025-03-01", "total_page_count": 10493, "net_increase": 8}, {"date": "2025-03-02", "total_page_count": 10497, "net_increase": 4}, {"date": "2025-03-03", "total_page_count": 10506, "net_increase": 9}, {"date": "2025-03-04", "total_page_count": 10506, "net_increase": 0}, {"date": "2025-03-05", "total_page_count": 10534, "net_increase": 28}, {"date": "2025-03-06", "total_page_count": 10539, "net_increase": 5}, {"date": "2025-03-07", "total_page_count": 10540, "net_increase": 1}, {"date": "2025-03-08", "total_page_count": 10545, "net_increase": 5}, {"date": "2025-03-09", "total_page_count": 10545, "net_increase": 0}, {"date": "2025-03-10", "total_page_count": 10545, "net_increase": 0}, {"date": "2025-03-11", "total_page_count": 10545, "net_increase": 0}, {"date": "2025-03-12", "total_page_count": 10547, "net_increase": 2}, {"date": "2025-03-13", "total_page_count": 10547, "net_increase": 0}, {"date": "2025-03-14", "total_page_count": 10548, "net_increase": 1}, {"date": "2025-03-15", "total_page_count": 10548, "net_increase": 0}, {"date": "2025-03-16", "total_page_count": 10549, "net_increase": 1}, {"date": "2025-03-17", "total_page_count": 10559, "net_increase": 10}, {"date": "2025-03-18", "total_page_count": 10565, "net_increase": 6}, {"date": "2025-03-19", "total_page_count": 10565, "net_increase": 0}, {"date": "2025-03-20", "total_page_count": 10571, "net_increase": 6}, {"date": "2025-03-21", "total_page_count": 10571, "net_increase": 0}, {"date": "2025-03-22", "total_page_count": 10571, "net_increase": 0}, {"date": "2025-03-23", "total_page_count": 10573, "net_increase": 2}, {"date": "2025-03-24", "total_page_count": 10583, "net_increase": 10}, {"date": "2025-03-25", "total_page_count": 10585, "net_increase": 2}, {"date": "2025-03-26", "total_page_count": 10585, "net_increase": 0}, {"date": "2025-03-27", "total_page_count": 10585, "net_increase": 0}, {"date": "2025-03-28", "total_page_count": 10585, "net_increase": 0}, {"date": "2025-03-29", "total_page_count": 10585, "net_increase": 0}, {"date": "2025-03-30", "total_page_count": 10586, "net_increase": 1}, {"date": "2025-03-31", "total_page_count": 10590, "net_increase": 4}, {"date": "2025-04-01", "total_page_count": 10594, "net_increase": 4}, {"date": "2025-04-02", "total_page_count": 10603, "net_increase": 9}, {"date": "2025-04-03", "total_page_count": 10603, "net_increase": 0}, {"date": "2025-04-04", "total_page_count": 10624, "net_increase": 21}, {"date": "2025-04-05", "total_page_count": 10723, "net_increase": 99}, {"date": "2025-04-06", "total_page_count": 10726, "net_increase": 3}, {"date": "2025-04-07", "total_page_count": 10727, "net_increase": 1}, {"date": "2025-04-08", "total_page_count": 10728, "net_increase": 1}, {"date": "2025-04-09", "total_page_count": 10728, "net_increase": 0}, {"date": "2025-04-10", "total_page_count": 10728, "net_increase": 0}, {"date": "2025-04-11", "total_page_count": 10730, "net_increase": 2}, {"date": "2025-04-12", "total_page_count": 10731, "net_increase": 1}, {"date": "2025-04-13", "total_page_count": 10735, "net_increase": 4}, {"date": "2025-04-14", "total_page_count": 10735, "net_increase": 0}, {"date": "2025-04-15", "total_page_count": 10735, "net_increase": 0}, {"date": "2025-04-16", "total_page_count": 10735, "net_increase": 0}, {"date": "2025-04-17", "total_page_count": 10735, "net_increase": 0}, {"date": "2025-04-18", "total_page_count": 10756, "net_increase": 21}, {"date": "2025-04-19", "total_page_count": 10756, "net_increase": 0}, {"date": "2025-04-20", "total_page_count": 10756, "net_increase": 0}, {"date": "2025-04-21", "total_page_count": 10761, "net_increase": 5}, {"date": "2025-04-22", "total_page_count": 10770, "net_increase": 9}, {"date": "2025-04-23", "total_page_count": 10774, "net_increase": 4}, {"date": "2025-04-24", "total_page_count": 10774, "net_increase": 0}, {"date": "2025-04-25", "total_page_count": 10774, "net_increase": 0}, {"date": "2025-04-26", "total_page_count": 10778, "net_increase": 4}, {"date": "2025-04-27", "total_page_count": 10804, "net_increase": 26}, {"date": "2025-04-28", "total_page_count": 10834, "net_increase": 30}, {"date": "2025-04-29", "total_page_count": 10841, "net_increase": 7}, {"date": "2025-04-30", "total_page_count": 10861, "net_increase": 20}, {"date": "2025-05-01", "total_page_count": 10861, "net_increase": 0}, {"date": "2025-05-02", "total_page_count": 10861, "net_increase": 0}, {"date": "2025-05-03", "total_page_count": 10861, "net_increase": 0}, {"date": "2025-05-04", "total_page_count": 10870, "net_increase": 9}, {"date": "2025-05-05", "total_page_count": 10877, "net_increase": 7}, {"date": "2025-05-06", "total_page_count": 10887, "net_increase": 10}, {"date": "2025-05-07", "total_page_count": 10894, "net_increase": 7}, {"date": "2025-05-08", "total_page_count": 10894, "net_increase": 0}, {"date": "2025-05-09", "total_page_count": 10896, "net_increase": 2}, {"date": "2025-05-10", "total_page_count": 10896, "net_increase": 0}, {"date": "2025-05-11", "total_page_count": 10897, "net_increase": 1}, {"date": "2025-05-12", "total_page_count": 10901, "net_increase": 4}, {"date": "2025-05-13", "total_page_count": 10904, "net_increase": 3}, {"date": "2025-05-14", "total_page_count": 10908, "net_increase": 4}, {"date": "2025-05-15", "total_page_count": 10908, "net_increase": 0}, {"date": "2025-05-16", "total_page_count": 10919, "net_increase": 11}, {"date": "2025-05-17", "total_page_count": 10920, "net_increase": 1}, {"date": "2025-05-18", "total_page_count": 10927, "net_increase": 7}, {"date": "2025-05-19", "total_page_count": 10943, "net_increase": 16}, {"date": "2025-05-20", "total_page_count": 10947, "net_increase": 4}, {"date": "2025-05-21", "total_page_count": 10956, "net_increase": 9}, {"date": "2025-05-22", "total_page_count": 10961, "net_increase": 5}, {"date": "2025-05-23", "total_page_count": 10961, "net_increase": 0}, {"date": "2025-05-24", "total_page_count": 10961, "net_increase": 0}, {"date": "2025-05-25", "total_page_count": 10963, "net_increase": 2}, {"date": "2025-05-26", "total_page_count": 10971, "net_increase": 8}, {"date": "2025-05-27", "total_page_count": 10972, "net_increase": 1}, {"date": "2025-05-28", "total_page_count": 10972, "net_increase": 0}, {"date": "2025-05-29", "total_page_count": 10973, "net_increase": 1}, {"date": "2025-05-30", "total_page_count": 10976, "net_increase": 3}, {"date": "2025-05-31", "total_page_count": 10982, "net_increase": 6}, {"date": "2025-06-01", "total_page_count": 10999, "net_increase": 17}, {"date": "2025-06-02", "total_page_count": 11016, "net_increase": 17}, {"date": "2025-06-03", "total_page_count": 11034, "net_increase": 18}, {"date": "2025-06-04", "total_page_count": 11038, "net_increase": 4}, {"date": "2025-06-05", "total_page_count": 11050, "net_increase": 12}, {"date": "2025-06-06", "total_page_count": 11052, "net_increase": 2}, {"date": "2025-06-07", "total_page_count": 11052, "net_increase": 0}, {"date": "2025-06-08", "total_page_count": 11052, "net_increase": 0}, {"date": "2025-06-09", "total_page_count": 11093, "net_increase": 41}, {"date": "2025-06-10", "total_page_count": 11103, "net_increase": 10}, {"date": "2025-06-11", "total_page_count": 11109, "net_increase": 6}, {"date": "2025-06-12", "total_page_count": 11154, "net_increase": 45}, {"date": "2025-06-13", "total_page_count": 11155, "net_increase": 1}, {"date": "2025-06-14", "total_page_count": 11155, "net_increase": 0}, {"date": "2025-06-15", "total_page_count": 11156, "net_increase": 1}, {"date": "2025-06-16", "total_page_count": 11173, "net_increase": 17}, {"date": "2025-06-17", "total_page_count": 11175, "net_increase": 2}, {"date": "2025-06-18", "total_page_count": 11175, "net_increase": 0}, {"date": "2025-06-19", "total_page_count": 11182, "net_increase": 7}, {"date": "2025-06-20", "total_page_count": 11182, "net_increase": 0}, {"date": "2025-06-21", "total_page_count": 11189, "net_increase": 7}, {"date": "2025-06-22", "total_page_count": 11189, "net_increase": 0}, {"date": "2025-06-23", "total_page_count": 11243, "net_increase": 54}, {"date": "2025-06-24", "total_page_count": 11243, "net_increase": 0}, {"date": "2025-06-25", "total_page_count": 11243, "net_increase": 0}, {"date": "2025-06-26", "total_page_count": 11243, "net_increase": 0}, {"date": "2025-06-27", "total_page_count": 11243, "net_increase": 0}, {"date": "2025-06-28", "total_page_count": 11243, "net_increase": 0}, {"date": "2025-06-29", "total_page_count": 11244, "net_increase": 1}, {"date": "2025-06-30", "total_page_count": 11244, "net_increase": 0}, {"date": "2025-07-01", "total_page_count": 11244, "net_increase": 0}, {"date": "2025-07-02", "total_page_count": 11244, "net_increase": 0}, {"date": "2025-07-03", "total_page_count": 11244, "net_increase": 0}, {"date": "2025-07-04", "total_page_count": 11244, "net_increase": 0}, {"date": "2025-07-05", "total_page_count": 11244, "net_increase": 0}, {"date": "2025-07-06", "total_page_count": 11244, "net_increase": 0}, {"date": "2025-07-07", "total_page_count": 11276, "net_increase": 32}, {"date": "2025-07-08", "total_page_count": 11278, "net_increase": 2}, {"date": "2025-07-09", "total_page_count": 11285, "net_increase": 7}, {"date": "2025-07-10", "total_page_count": 11286, "net_increase": 1}, {"date": "2025-07-11", "total_page_count": 11286, "net_increase": 0}, {"date": "2025-07-12", "total_page_count": 11286, "net_increase": 0}, {"date": "2025-07-13", "total_page_count": 11286, "net_increase": 0}, {"date": "2025-07-14", "total_page_count": 11286, "net_increase": 0}, {"date": "2025-07-15", "total_page_count": 11286, "net_increase": 0}, {"date": "2025-07-16", "total_page_count": 11315, "net_increase": 29}, {"date": "2025-07-17", "total_page_count": 11315, "net_increase": 0}, {"date": "2025-07-18", "total_page_count": 11315, "net_increase": 0}, {"date": "2025-07-19", "total_page_count": 11329, "net_increase": 14}, {"date": "2025-07-20", "total_page_count": 11333, "net_increase": 4}, {"date": "2025-07-21", "total_page_count": 11368, "net_increase": 35}, {"date": "2025-07-22", "total_page_count": 11420, "net_increase": 52}, {"date": "2025-07-23", "total_page_count": 11450, "net_increase": 30}, {"date": "2025-07-24", "total_page_count": 11456, "net_increase": 6}, {"date": "2025-07-25", "total_page_count": 11464, "net_increase": 8}, {"date": "2025-07-26", "total_page_count": 11464, "net_increase": 0}, {"date": "2025-07-27", "total_page_count": 11478, "net_increase": 14}, {"date": "2025-07-28", "total_page_count": 11478, "net_increase": 0}, {"date": "2025-07-29", "total_page_count": 11484, "net_increase": 6}, {"date": "2025-07-30", "total_page_count": 11484, "net_increase": 0}, {"date": "2025-07-31", "total_page_count": 11494, "net_increase": 10}, {"date": "2025-08-01", "total_page_count": 11506, "net_increase": 12}, {"date": "2025-08-02", "total_page_count": 11533, "net_increase": 27}, {"date": "2025-08-03", "total_page_count": 11534, "net_increase": 1}, {"date": "2025-08-04", "total_page_count": 11534, "net_increase": 0}, {"date": "2025-08-05", "total_page_count": 11534, "net_increase": 0}, {"date": "2025-08-06", "total_page_count": 11576, "net_increase": 42}, {"date": "2025-08-07", "total_page_count": 11619, "net_increase": 43}, {"date": "2025-08-08", "total_page_count": 11634, "net_increase": 15}, {"date": "2025-08-09", "total_page_count": 11636, "net_increase": 2}, {"date": "2025-08-10", "total_page_count": 11666, "net_increase": 30}, {"date": "2025-08-11", "total_page_count": 11706, "net_increase": 40}, {"date": "2025-08-12", "total_page_count": 11718, "net_increase": 12}, {"date": "2025-08-13", "total_page_count": 11718, "net_increase": 0}, {"date": "2025-08-14", "total_page_count": 11718, "net_increase": 0}, {"date": "2025-08-15", "total_page_count": 11718, "net_increase": 0}, {"date": "2025-08-16", "total_page_count": 11722, "net_increase": 4}, {"date": "2025-08-17", "total_page_count": 11722, "net_increase": 0}, {"date": "2025-08-18", "total_page_count": 11729, "net_increase": 7}, {"date": "2025-08-19", "total_page_count": 11740, "net_increase": 11}, {"date": "2025-08-20", "total_page_count": 11740, "net_increase": 0}, {"date": "2025-08-21", "total_page_count": 11740, "net_increase": 0}, {"date": "2025-08-22", "total_page_count": 11747, "net_increase": 7}, {"date": "2025-08-23", "total_page_count": 11748, "net_increase": 1}, {"date": "2025-08-24", "total_page_count": 11748, "net_increase": 0}, {"date": "2025-08-25", "total_page_count": 11748, "net_increase": 0}, {"date": "2025-08-26", "total_page_count": 11748, "net_increase": 0}, {"date": "2025-08-27", "total_page_count": 11786, "net_increase": 38}, {"date": "2025-08-28", "total_page_count": 11786, "net_increase": 0}, {"date": "2025-08-29", "total_page_count": 11793, "net_increase": 7}, {"date": "2025-08-30", "total_page_count": 11796, "net_increase": 3}, {"date": "2025-08-31", "total_page_count": 11913, "net_increase": 117}, {"date": "2025-09-01", "total_page_count": 11915, "net_increase": 2}, {"date": "2025-09-02", "total_page_count": 11915, "net_increase": 0}, {"date": "2025-09-03", "total_page_count": 11915, "net_increase": 0}, {"date": "2025-09-04", "total_page_count": 11960, "net_increase": 45}, {"date": "2025-09-05", "total_page_count": 11960, "net_increase": 0}, {"date": "2025-09-06", "total_page_count": 11960, "net_increase": 0}, {"date": "2025-09-07", "total_page_count": 11961, "net_increase": 1}, {"date": "2025-09-08", "total_page_count": 12026, "net_increase": 65}, {"date": "2025-09-09", "total_page_count": 12035, "net_increase": 9}, {"date": "2025-09-10", "total_page_count": 12037, "net_increase": 2}, {"date": "2025-09-11", "total_page_count": 12057, "net_increase": 20}, {"date": "2025-09-12", "total_page_count": 12063, "net_increase": 6}, {"date": "2025-09-13", "total_page_count": 12064, "net_increase": 1}, {"date": "2025-09-14", "total_page_count": 12064, "net_increase": 0}, {"date": "2025-09-15", "total_page_count": 12064, "net_increase": 0}, {"date": "2025-09-16", "total_page_count": 12064, "net_increase": 0}, {"date": "2025-09-17", "total_page_count": 12068, "net_increase": 4}, {"date": "2025-09-18", "total_page_count": 12083, "net_increase": 15}, {"date": "2025-09-19", "total_page_count": 12085, "net_increase": 2}, {"date": "2025-09-20", "total_page_count": 12086, "net_increase": 1}, {"date": "2025-09-21", "total_page_count": 12087, "net_increase": 1}, {"date": "2025-09-22", "total_page_count": 12087, "net_increase": 0}, {"date": "2025-09-23", "total_page_count": 12087, "net_increase": 0}, {"date": "2025-09-24", "total_page_count": 12089, "net_increase": 2}, {"date": "2025-09-25", "total_page_count": 12089, "net_increase": 0}, {"date": "2025-09-26", "total_page_count": 12089, "net_increase": 0}, {"date": "2025-09-27", "total_page_count": 12089, "net_increase": 0}, {"date": "2025-09-28", "total_page_count": 12103, "net_increase": 14}, {"date": "2025-09-29", "total_page_count": 12103, "net_increase": 0}, {"date": "2025-09-30", "total_page_count": 12104, "net_increase": 1}, {"date": "2025-10-01", "total_page_count": 12104, "net_increase": 0}, {"date": "2025-10-02", "total_page_count": 12104, "net_increase": 0}, {"date": "2025-10-03", "total_page_count": 12104, "net_increase": 0}, {"date": "2025-10-04", "total_page_count": 12104, "net_increase": 0}, {"date": "2025-10-05", "total_page_count": 12104, "net_increase": 0}, {"date": "2025-10-06", "total_page_count": 12104, "net_increase": 0}, {"date": "2025-10-07", "total_page_count": 12109, "net_increase": 5}, {"date": "2025-10-08", "total_page_count": 12132, "net_increase": 23}, {"date": "2025-10-09", "total_page_count": 12136, "net_increase": 4}, {"date": "2025-10-10", "total_page_count": 12136, "net_increase": 0}, {"date": "2025-10-11", "total_page_count": 12138, "net_increase": 2}, {"date": "2025-10-12", "total_page_count": 12138, "net_increase": 0}, {"date": "2025-10-13", "total_page_count": 12153, "net_increase": 15}, {"date": "2025-10-14", "total_page_count": 12170, "net_increase": 17}, {"date": "2025-10-15", "total_page_count": 12170, "net_increase": 0}, {"date": "2025-10-16", "total_page_count": 12184, "net_increase": 14}, {"date": "2025-10-17", "total_page_count": 12226, "net_increase": 42}, {"date": "2025-10-18", "total_page_count": 12249, "net_increase": 23}, {"date": "2025-10-19", "total_page_count": 12263, "net_increase": 14}, {"date": "2025-10-20", "total_page_count": 12284, "net_increase": 21}, {"date": "2025-10-21", "total_page_count": 12295, "net_increase": 11}, {"date": "2025-10-22", "total_page_count": 12298, "net_increase": 3}, {"date": "2025-10-23", "total_page_count": 12298, "net_increase": 0}, {"date": "2025-10-24", "total_page_count": 12314, "net_increase": 16}, {"date": "2025-10-25", "total_page_count": 12316, "net_increase": 2}, {"date": "2025-10-26", "total_page_count": 12316, "net_increase": 0}, {"date": "2025-10-27", "total_page_count": 12326, "net_increase": 10}, {"date": "2025-10-28", "total_page_count": 12326, "net_increase": 0}, {"date": "2025-10-29", "total_page_count": 12340, "net_increase": 14}, {"date": "2025-10-30", "total_page_count": 12420, "net_increase": 80}, {"date": "2025-10-31", "total_page_count": 12450, "net_increase": 30}, {"date": "2025-11-01", "total_page_count": 12521, "net_increase": 71}, {"date": "2025-11-02", "total_page_count": 12523, "net_increase": 2}, {"date": "2025-11-03", "total_page_count": 12523, "net_increase": 0}, {"date": "2025-11-04", "total_page_count": 12524, "net_increase": 1}, {"date": "2025-11-05", "total_page_count": 12524, "net_increase": 0}, {"date": "2025-11-06", "total_page_count": 12524, "net_increase": 0}, {"date": "2025-11-07", "total_page_count": 12557, "net_increase": 33}, {"date": "2025-11-08", "total_page_count": 12557, "net_increase": 0}, {"date": "2025-11-09", "total_page_count": 12561, "net_increase": 4}, {"date": "2025-11-10", "total_page_count": 12561, "net_increase": 0}, {"date": "2025-11-11", "total_page_count": 12581, "net_increase": 20}, {"date": "2025-11-12", "total_page_count": 12595, "net_increase": 14}, {"date": "2025-11-13", "total_page_count": 12595, "net_increase": 0}, {"date": "2025-11-14", "total_page_count": 12595, "net_increase": 0}, {"date": "2025-11-15", "total_page_count": 12599, "net_increase": 4}, {"date": "2025-11-16", "total_page_count": 12668, "net_increase": 69}, {"date": "2025-11-17", "total_page_count": 12695, "net_increase": 27}, {"date": "2025-11-18", "total_page_count": 12700, "net_increase": 5}, {"date": "2025-11-19", "total_page_count": 12705, "net_increase": 5}, {"date": "2025-11-20", "total_page_count": 12706, "net_increase": 1}, {"date": "2025-11-21", "total_page_count": 12707, "net_increase": 1}, {"date": "2025-11-22", "total_page_count": 12715, "net_increase": 8}, {"date": "2025-11-23", "total_page_count": 12733, "net_increase": 18}, {"date": "2025-11-24", "total_page_count": 12737, "net_increase": 4}, {"date": "2025-11-25", "total_page_count": 12737, "net_increase": 0}, {"date": "2025-11-26", "total_page_count": 12749, "net_increase": 12}, {"date": "2025-11-27", "total_page_count": 12756, "net_increase": 7}, {"date": "2025-11-28", "total_page_count": 12757, "net_increase": 1}, {"date": "2025-11-29", "total_page_count": 12765, "net_increase": 8}, {"date": "2025-11-30", "total_page_count": 12772, "net_increase": 7}, {"date": "2025-12-01", "total_page_count": 12774, "net_increase": 2}, {"date": "2025-12-02", "total_page_count": 12784, "net_increase": 10}, {"date": "2025-12-03", "total_page_count": 12784, "net_increase": 0}, {"date": "2025-12-04", "total_page_count": 12804, "net_increase": 20}, {"date": "2025-12-05", "total_page_count": 12804, "net_increase": 0}, {"date": "2025-12-06", "total_page_count": 12826, "net_increase": 22}, {"date": "2025-12-07", "total_page_count": 12827, "net_increase": 1}, {"date": "2025-12-08", "total_page_count": 12827, "net_increase": 0}, {"date": "2025-12-09", "total_page_count": 12960, "net_increase": 133}, {"date": "2025-12-10", "total_page_count": 13021, "net_increase": 61}, {"date": "2025-12-11", "total_page_count": 13038, "net_increase": 17}, {"date": "2025-12-12", "total_page_count": 13039, "net_increase": 1}, {"date": "2025-12-13", "total_page_count": 13039, "net_increase": 0}, {"date": "2025-12-14", "total_page_count": 13044, "net_increase": 5}, {"date": "2025-12-15", "total_page_count": 13044, "net_increase": 0}, {"date": "2025-12-16", "total_page_count": 13046, "net_increase": 2}, {"date": "2025-12-17", "total_page_count": 13046, "net_increase": 0}, {"date": "2025-12-18", "total_page_count": 13048, "net_increase": 2}, {"date": "2025-12-19", "total_page_count": 13067, "net_increase": 19}, {"date": "2025-12-20", "total_page_count": 13076, "net_increase": 9}, {"date": "2025-12-21", "total_page_count": 13076, "net_increase": 0}, {"date": "2025-12-22", "total_page_count": 13088, "net_increase": 12}, {"date": "2025-12-23", "total_page_count": 13088, "net_increase": 0}, {"date": "2025-12-24", "total_page_count": 13090, "net_increase": 2}, {"date": "2025-12-25", "total_page_count": 13090, "net_increase": 0}, {"date": "2025-12-26", "total_page_count": 13090, "net_increase": 0}, {"date": "2025-12-27", "total_page_count": 13090, "net_increase": 0}, {"date": "2025-12-28", "total_page_count": 13090, "net_increase": 0}, {"date": "2025-12-29", "total_page_count": 13116, "net_increase": 26}, {"date": "2025-12-30", "total_page_count": 13116, "net_increase": 0}, {"date": "2025-12-31", "total_page_count": 13116, "net_increase": 0}, {"date": "2026-01-01", "total_page_count": 13117, "net_increase": 1}, {"date": "2026-01-02", "total_page_count": 13117, "net_increase": 0}, {"date": "2026-01-03", "total_page_count": 13118, "net_increase": 1}, {"date": "2026-01-04", "total_page_count": 13135, "net_increase": 17}, {"date": "2026-01-05", "total_page_count": 13142, "net_increase": 7}, {"date": "2026-01-06", "total_page_count": 13143, "net_increase": 1}, {"date": "2026-01-07", "total_page_count": 13210, "net_increase": 67}, {"date": "2026-01-08", "total_page_count": 13214, "net_increase": 4}, {"date": "2026-01-09", "total_page_count": 13215, "net_increase": 1}, {"date": "2026-01-10", "total_page_count": 13215, "net_increase": 0}, {"date": "2026-01-11", "total_page_count": 13219, "net_increase": 4}, {"date": "2026-01-12", "total_page_count": 13225, "net_increase": 6}, {"date": "2026-01-13", "total_page_count": 13226, "net_increase": 1}, {"date": "2026-01-14", "total_page_count": 13227, "net_increase": 1}, {"date": "2026-01-15", "total_page_count": 13227, "net_increase": 0}, {"date": "2026-01-16", "total_page_count": 13263, "net_increase": 36}, {"date": "2026-01-17", "total_page_count": 13263, "net_increase": 0}, {"date": "2026-01-18", "total_page_count": 13298, "net_increase": 35}, {"date": "2026-01-19", "total_page_count": 13306, "net_increase": 8}, {"date": "2026-01-20", "total_page_count": 13308, "net_increase": 2}, {"date": "2026-01-21", "total_page_count": 13308, "net_increase": 0}, {"date": "2026-01-22", "total_page_count": 13308, "net_increase": 0}, {"date": "2026-01-23", "total_page_count": 13308, "net_increase": 0}, {"date": "2026-01-24", "total_page_count": 13312, "net_increase": 4}, {"date": "2026-01-25", "total_page_count": 13313, "net_increase": 1}, {"date": "2026-01-26", "total_page_count": 13332, "net_increase": 19}, {"date": "2026-01-27", "total_page_count": 13333, "net_increase": 1}, {"date": "2026-01-28", "total_page_count": 13333, "net_increase": 0}, {"date": "2026-01-29", "total_page_count": 13333, "net_increase": 0}, {"date": "2026-01-30", "total_page_count": 13333, "net_increase": 0}, {"date": "2026-01-31", "total_page_count": 13333, "net_increase": 0}, {"date": "2026-02-01", "total_page_count": 13333, "net_increase": 0}, {"date": "2026-02-02", "total_page_count": 13333, "net_increase": 0}, {"date": "2026-02-03", "total_page_count": 13333, "net_increase": 0}, {"date": "2026-02-04", "total_page_count": 13333, "net_increase": 0}, {"date": "2026-02-05", "total_page_count": 13333, "net_increase": 0}, {"date": "2026-02-06", "total_page_count": 13333, "net_increase": 0}, {"date": "2026-02-07", "total_page_count": 13333, "net_increase": 0}, {"date": "2026-02-08", "total_page_count": 13333, "net_increase": 0}, {"date": "2026-02-09", "total_page_count": 13333, "net_increase": 0}, {"date": "2026-02-10", "total_page_count": 13336, "net_increase": 3}, {"date": "2026-02-11", "total_page_count": 13337, "net_increase": 1}, {"date": "2026-02-12", "total_page_count": 13340, "net_increase": 3}, {"date": "2026-02-13", "total_page_count": 13340, "net_increase": 0}, {"date": "2026-02-14", "total_page_count": 13340, "net_increase": 0}, {"date": "2026-02-15", "total_page_count": 13340, "net_increase": 0}, {"date": "2026-02-16", "total_page_count": 13340, "net_increase": 0}, {"date": "2026-02-17", "total_page_count": 13340, "net_increase": 0}, {"date": "2026-02-18", "total_page_count": 13340, "net_increase": 0}, {"date": "2026-02-19", "total_page_count": 13340, "net_increase": 0}, {"date": "2026-02-20", "total_page_count": 13344, "net_increase": 4}, {"date": "2026-02-21", "total_page_count": 13344, "net_increase": 0}, {"date": "2026-02-22", "total_page_count": 13344, "net_increase": 0}, {"date": "2026-02-23", "total_page_count": 13344, "net_increase": 0}, {"date": "2026-02-24", "total_page_count": 13344, "net_increase": 0}, {"date": "2026-02-25", "total_page_count": 13344, "net_increase": 0}, {"date": "2026-02-26", "total_page_count": 13351, "net_increase": 7}, {"date": "2026-02-27", "total_page_count": 13352, "net_increase": 1}, {"date": "2026-02-28", "total_page_count": 13353, "net_increase": 1}, {"date": "2026-03-01", "total_page_count": 13360, "net_increase": 7}, {"date": "2026-03-02", "total_page_count": 13360, "net_increase": 0}, {"date": "2026-03-03", "total_page_count": 13360, "net_increase": 0}, {"date": "2026-03-04", "total_page_count": 13367, "net_increase": 7}, {"date": "2026-03-05", "total_page_count": 13368, "net_increase": 1}, {"date": "2026-03-06", "total_page_count": 13368, "net_increase": 0}, {"date": "2026-03-07", "total_page_count": 13368, "net_increase": 0}, {"date": "2026-03-08", "total_page_count": 13368, "net_increase": 0}, {"date": "2026-03-09", "total_page_count": 13376, "net_increase": 8}, {"date": "2026-03-10", "total_page_count": 13380, "net_increase": 4}, {"date": "2026-03-11", "total_page_count": 13381, "net_increase": 1}, {"date": "2026-03-12", "total_page_count": 13385, "net_increase": 4}, {"date": "2026-03-13", "total_page_count": 13385, "net_increase": 0}, {"date": "2026-03-14", "total_page_count": 13386, "net_increase": 1}, {"date": "2026-03-15", "total_page_count": 13390, "net_increase": 4}, {"date": "2026-03-16", "total_page_count": 13391, "net_increase": 1}, {"date": "2026-03-17", "total_page_count": 13409, "net_increase": 18}, {"date": "2026-03-18", "total_page_count": 13409, "net_increase": 0}, {"date": "2026-03-19", "total_page_count": 13409, "net_increase": 0}, {"date": "2026-03-20", "total_page_count": 13410, "net_increase": 1}, {"date": "2026-03-21", "total_page_count": 13426, "net_increase": 16}, {"date": "2026-03-22", "total_page_count": 13726, "net_increase": 300}, {"date": "2026-03-23", "total_page_count": 13728, "net_increase": 2}, {"date": "2026-03-24", "total_page_count": 13728, "net_increase": 0}, {"date": "2026-03-25", "total_page_count": 13733, "net_increase": 5}, {"date": "2026-03-26", "total_page_count": 13738, "net_increase": 5}, {"date": "2026-03-27", "total_page_count": 13753, "net_increase": 15}, {"date": "2026-03-28", "total_page_count": 13754, "net_increase": 1}, {"date": "2026-03-29", "total_page_count": 13755, "net_increase": 1}, {"date": "2026-03-30", "total_page_count": 13756, "net_increase": 1}, {"date": "2026-03-31", "total_page_count": 13756, "net_increase": 0}, {"date": "2026-04-01", "total_page_count": 13757, "net_increase": 1}, {"date": "2026-04-02", "total_page_count": 13757, "net_increase": 0}, {"date": "2026-04-03", "total_page_count": 13762, "net_increase": 5}, {"date": "2026-04-04", "total_page_count": 13762, "net_increase": 0}, {"date": "2026-04-05", "total_page_count": 13762, "net_increase": 0}, {"date": "2026-04-06", "total_page_count": 13767, "net_increase": 5}, {"date": "2026-04-07", "total_page_count": 13793, "net_increase": 26}, {"date": "2026-04-08", "total_page_count": 13793, "net_increase": 0}, {"date": "2026-04-09", "total_page_count": 13800, "net_increase": 7}, {"date": "2026-04-10", "total_page_count": 13800, "net_increase": 0}, {"date": "2026-04-11", "total_page_count": 13806, "net_increase": 6}, {"date": "2026-04-12", "total_page_count": 13806, "net_increase": 0}, {"date": "2026-04-13", "total_page_count": 13809, "net_increase": 3}, {"date": "2026-04-14", "total_page_count": 13813, "net_increase": 4}, {"date": "2026-04-15", "total_page_count": 13826, "net_increase": 13}, {"date": "2026-04-16", "total_page_count": 13828, "net_increase": 2}, {"date": "2026-04-17", "total_page_count": 13837, "net_increase": 9}, {"date": "2026-04-18", "total_page_count": 13837, "net_increase": 0}, {"date": "2026-04-19", "total_page_count": 13853, "net_increase": 16}, {"date": "2026-04-20", "total_page_count": 13864, "net_increase": 11}, {"date": "2026-04-21", "total_page_count": 13875, "net_increase": 11}, {"date": "2026-04-22", "total_page_count": 13880, "net_increase": 5}, {"date": "2026-04-23", "total_page_count": 13884, "net_increase": 4}, {"date": "2026-04-24", "total_page_count": 13885, "net_increase": 1}, {"date": "2026-04-25", "total_page_count": 13885, "net_increase": 0}, {"date": "2026-04-26", "total_page_count": 13885, "net_increase": 0}, {"date": "2026-04-27", "total_page_count": 13886, "net_increase": 1}, {"date": "2026-04-28", "total_page_count": 13886, "net_increase": 0}, {"date": "2026-04-29", "total_page_count": 13886, "net_increase": 0}, {"date": "2026-04-30", "total_page_count": 13886, "net_increase": 0}, {"date": "2026-05-01", "total_page_count": 13886, "net_increase": 0}, {"date": "2026-05-02", "total_page_count": 13886, "net_increase": 0}, {"date": "2026-05-03", "total_page_count": 13886, "net_increase": 0}, {"date": "2026-05-04", "total_page_count": 13888, "net_increase": 2}, {"date": "2026-05-05", "total_page_count": 13889, "net_increase": 1}, {"date": "2026-05-06", "total_page_count": 13891, "net_increase": 2}, {"date": "2026-05-07", "total_page_count": 13891, "net_increase": 0}, {"date": "2026-05-08", "total_page_count": 13891, "net_increase": 0}, {"date": "2026-05-09", "total_page_count": 13891, "net_increase": 0}, {"date": "2026-05-10", "total_page_count": 13897, "net_increase": 6}, {"date": "2026-05-11", "total_page_count": 13898, "net_increase": 1}, {"date": "2026-05-12", "total_page_count": 13899, "net_increase": 1}, {"date": "2026-05-13", "total_page_count": 13900, "net_increase": 1}, {"date": "2026-05-14", "total_page_count": 13902, "net_increase": 2}, {"date": "2026-05-15", "total_page_count": 13914, "net_increase": 12}, {"date": "2026-05-16", "total_page_count": 13914, "net_increase": 0}, {"date": "2026-05-17", "total_page_count": 13914, "net_increase": 0}, {"date": "2026-05-18", "total_page_count": 13916, "net_increase": 2}, {"date": "2026-05-19", "total_page_count": 13916, "net_increase": 0}, {"date": "2026-05-20", "total_page_count": 13916, "net_increase": 0}, {"date": "2026-05-21", "total_page_count": 13916, "net_increase": 0}, {"date": "2026-05-22", "total_page_count": 13916, "net_increase": 0}, {"date": "2026-05-23", "total_page_count": 13916, "net_increase": 0}, {"date": "2026-05-24", "total_page_count": 13918, "net_increase": 2}, {"date": "2026-05-25", "total_page_count": 13919, "net_increase": 1}, {"date": "2026-05-26", "total_page_count": 13924, "net_increase": 5}, {"date": "2026-05-27", "total_page_count": 13924, "net_increase": 0}, {"date": "2026-05-28", "total_page_count": 13925, "net_increase": 1}, {"date": "2026-05-29", "total_page_count": 13925, "net_increase": 0}, {"date": "2026-05-30", "total_page_count": 13925, "net_increase": 0}, {"date": "2026-05-31", "total_page_count": 13925, "net_increase": 0}, {"date": "2026-06-01", "total_page_count": 13931, "net_increase": 6}, {"date": "2026-06-02", "total_page_count": 13937, "net_increase": 6}, {"date": "2026-06-03", "total_page_count": 13939, "net_increase": 2}, {"date": "2026-06-04", "total_page_count": 13948, "net_increase": 9}, {"date": "2026-06-05", "total_page_count": 13948, "net_increase": 0}, {"date": "2026-06-06", "total_page_count": 13948, "net_increase": 0}, {"date": "2026-06-07", "total_page_count": 13948, "net_increase": 0}, {"date": "2026-06-08", "total_page_count": 13949, "net_increase": 1}, {"date": "2026-06-09", "total_page_count": 13949, "net_increase": 0}, {"date": "2026-06-10", "total_page_count": 13949, "net_increase": 0}, {"date": "2026-06-11", "total_page_count": 13952, "net_increase": 3}, {"date": "2026-06-12", "total_page_count": 13952, "net_increase": 0}, {"date": "2026-06-13", "total_page_count": 13953, "net_increase": 1}, {"date": "2026-06-14", "total_page_count": 13958, "net_increase": 5}, {"date": "2026-06-15", "total_page_count": 13965, "net_increase": 7}, {"date": "2026-06-16", "total_page_count": 13988, "net_increase": 23}, {"date": "2026-06-17", "total_page_count": 14018, "net_increase": 30}, {"date": "2026-06-18", "total_page_count": 14018, "net_increase": 0}, {"date": "2026-06-19", "total_page_count": 14037, "net_increase": 19}, {"date": "2026-06-20", "total_page_count": 14057, "net_increase": 20}, {"date": "2026-06-21", "total_page_count": 14079, "net_increase": 22}, {"date": "2026-06-22", "total_page_count": 14079, "net_increase": 0}, {"date": "2026-06-23", "total_page_count": 14079, "net_increase": 0}, {"date": "2026-06-24", "total_page_count": 14079, "net_increase": 0}, {"date": "2026-06-25", "total_page_count": 14079, "net_increase": 0}, {"date": "2026-06-26", "total_page_count": 14082, "net_increase": 3}, {"date": "2026-06-27", "total_page_count": 14082, "net_increase": 0}, {"date": "2026-06-28", "total_page_count": 14085, "net_increase": 3}, {"date": "2026-06-29", "total_page_count": 14093, "net_increase": 8}, {"date": "2026-06-30", "total_page_count": 14094, "net_increase": 1}, {"date": "2026-07-01", "total_page_count": 14111, "net_increase": 17}, {"date": "2026-07-02", "total_page_count": 14118, "net_increase": 7}, {"date": "2026-07-03", "total_page_count": 14121, "net_increase": 3}, {"date": "2026-07-04", "total_page_count": 14121, "net_increase": 0}, {"date": "2026-07-05", "total_page_count": 14122, "net_increase": 1}, {"date": "2026-07-06", "total_page_count": 14125, "net_increase": 3}, {"date": "2026-07-07", "total_page_count": 14125, "net_increase": 0}, {"date": "2026-07-08", "total_page_count": 14130, "net_increase": 5}, {"date": "2026-07-09", "total_page_count": 14130, "net_increase": 0}, {"date": "2026-07-10", "total_page_count": 14130, "net_increase": 0}, {"date": "2026-07-11", "total_page_count": 14130, "net_increase": 0}, {"date": "2026-07-12", "total_page_count": 14131, "net_increase": 1}, {"date": "2026-07-13", "total_page_count": 14131, "net_increase": 0}, {"date": "2026-07-14", "total_page_count": 14131, "net_increase": 0}, {"date": "2026-07-15", "total_page_count": 14131, "net_increase": 0}, {"date": "2026-07-16", "total_page_count": 14141, "net_increase": 10}, {"date": "2026-07-17", "total_page_count": 14145, "net_increase": 4}, {"date": "2026-07-18", "total_page_count": 14145, "net_increase": 0}, {"date": "2026-07-19", "total_page_count": 14145, "net_increase": 0}, {"date": "2026-07-20", "total_page_count": 14147, "net_increase": 2}, {"date": "2026-07-21", "total_page_count": 14172, "net_increase": 25}, {"date": "2026-07-22", "total_page_count": 14187, "net_increase": 15}, {"date": "2026-07-23", "total_page_count": 14187, "net_increase": 0}, {"date": "2026-07-24", "total_page_count": 14188, "net_increase": 1}, {"date": "2026-07-25", "total_page_count": 14188, "net_increase": 0}, {"date": "2026-07-26", "total_page_count": 14188, "net_increase": 0}, {"date": "2026-07-27", "total_page_count": 14192, "net_increase": 4}, {"date": "2026-07-28", "total_page_count": 14192, "net_increase": 0}, {"date": "2026-07-29", "total_page_count": 14192, "net_increase": 0}, {"date": "2026-07-30", "total_page_count": 14195, "net_increase": 3}, {"date": "2026-07-31", "total_page_count": 14197, "net_increase": 2}, {"date": "2026-08-01", "total_page_count": 14201, "net_increase": 4}, {"date": "2026-08-02", "total_page_count": 14201, "net_increase": 0}, {"date": "2026-08-03", "total_page_count": 14201, "net_increase": 0}, {"date": "2026-08-04", "total_page_count": 14201, "net_increase": 0}, {"date": "2026-08-05", "total_page_count": 14201, "net_increase": 0}, {"date": "2026-08-06", "total_page_count": 14201, "net_increase": 0}, {"date": "2026-08-07", "total_page_count": 14201, "net_increase": 0}, {"date": "2026-08-08", "total_page_count": 14201, "net_increase": 0}, {"date": "2026-08-09", "total_page_count": 14201, "net_increase": 0}, {"date": "2026-08-10", "total_page_count": 14201, "net_increase": 0}, {"date": "2026-08-11", "total_page_count": 14201, "net_increase": 0}, {"date": "2026-08-12", "total_page_count": 14202, "net_increase": 1}, {"date": "2026-08-13", "total_page_count": 14219, "net_increase": 17}, {"date": "2026-08-14", "total_page_count": 14219, "net_increase": 0}, {"date": "2026-08-15", "total_page_count": 14219, "net_increase": 0}, {"date": "2026-08-16", "total_page_count": 14219, "net_increase": 0}, {"date": "2026-08-17", "total_page_count": 14219, "net_increase": 0}, {"date": "2026-08-18", "total_page_count": 14233, "net_increase": 14}, {"date": "2026-08-19", "total_page_count": 14233, "net_increase": 0}, {"date": "2026-08-20", "total_page_count": 14236, "net_increase": 3}, {"date": "2026-08-21", "total_page_count": 14236, "net_increase": 0}, {"date": "2026-08-22", "total_page_count": 14236, "net_increase": 0}, {"date": "2026-08-23", "total_page_count": 14278, "net_increase": 42}, {"date": "2026-08-24", "total_page_count": 14278, "net_increase": 0}, {"date": "2026-08-25", "total_page_count": 14278, "net_increase": 0}, {"date": "2026-08-26", "total_page_count": 14278, "net_increase": 0}, {"date": "2026-08-27", "total_page_count": 14278, "net_increase": 0}, {"date": "2026-08-28", "total_page_count": 14285, "net_increase": 7}, {"date": "2026-08-29", "total_page_count": 14292, "net_increase": 7}, {"date": "2026-08-30", "total_page_count": 14310, "net_increase": 18}, {"date": "2026-08-31", "total_page_count": 14312, "net_increase": 2}, {"date": "2026-09-01", "total_page_count": 14312, "net_increase": 0}, {"date": "2026-09-02", "total_page_count": 14312, "net_increase": 0}, {"date": "2026-09-03", "total_page_count": 14312, "net_increase": 0}, {"date": "2026-09-04", "total_page_count": 14312, "net_increase": 0}, {"date": "2026-09-05", "total_page_count": 14312, "net_increase": 0}, {"date": "2026-09-06", "total_page_count": 14312, "net_increase": 0}, {"date": "2026-09-07", "total_page_count": 14312, "net_increase": 0}, {"date": "2026-09-08", "total_page_count": 14312, "net_increase": 0}, {"date": "2026-09-09", "total_page_count": 14312, "net_increase": 0}, {"date": "2026-09-10", "total_page_count": 14312, "net_increase": 0}, {"date": "2026-09-11", "total_page_count": 14312, "net_increase": 0}, {"date": "2026-09-12", "total_page_count": 14313, "net_increase": 1}, {"date": "2026-09-13", "total_page_count": 14328, "net_increase": 15}, {"date": "2026-09-14", "total_page_count": 14328, "net_increase": 0}, {"date": "2026-09-15", "total_page_count": 14328, "net_increase": 0}, {"date": "2026-09-16", "total_page_count": 14328, "net_increase": 0}, {"date": "2026-09-17", "total_page_count": 14361, "net_increase": 33}, {"date": "2026-09-18", "total_page_count": 14379, "net_increase": 18}, {"date": "2026-09-19", "total_page_count": 14379, "net_increase": 0}, {"date": "2026-09-20", "total_page_count": 14384, "net_increase": 5}, {"date": "2026-09-21", "total_page_count": 14384, "net_increase": 0}, {"date": "2026-09-22", "total_page_count": 14384, "net_increase": 0}, {"date": "2026-09-23", "total_page_count": 14384, "net_increase": 0}, {"date": "2026-09-24", "total_page_count": 14384, "net_increase": 0}, {"date": "2026-09-25", "total_page_count": 14384, "net_increase": 0}, {"date": "2026-09-26", "total_page_count": 14386, "net_increase": 2}, {"date": "2026-09-27", "total_page_count": 14386, "net_increase": 0}, {"date": "2026-09-28", "total_page_count": 14474, "net_increase": 88}, {"date": "2026-09-29", "total_page_count": 14475, "net_increase": 1}, {"date": "2026-09-30", "total_page_count": 14475, "net_increase": 0}, {"date": "2026-10-01", "total_page_count": 14496, "net_increase": 21}, {"date": "2026-10-02", "total_page_count": 14496, "net_increase": 0}, {"date": "2026-10-03", "total_page_count": 14496, "net_increase": 0}, {"date": "2026-10-04", "total_page_count": 14500, "net_increase": 4}, {"date": "2026-10-05", "total_page_count": 14507, "net_increase": 7}, {"date": "2026-10-06", "total_page_count": 14510, "net_increase": 3}, {"date": "2026-10-07", "total_page_count": 14515, "net_increase": 5}, {"date": "2026-10-08", "total_page_count": 14519, "net_increase": 4}, {"date": "2026-10-09", "total_page_count": 14519, "net_increase": 0}, {"date": "2026-10-10", "total_page_count": 14522, "net_increase": 3}, {"date": "2026-10-11", "total_page_count": 14522, "net_increase": 0}, {"date": "2026-10-12", "total_page_count": 14580, "net_increase": 58}, {"date": "2026-10-13", "total_page_count": 14587, "net_increase": 7}, {"date": "2026-10-14", "total_page_count": 14587, "net_increase": 0}, {"date": "2026-10-15", "total_page_count": 14590, "net_increase": 3}, {"date": "2026-10-16", "total_page_count": 14590, "net_increase": 0}, {"date": "2026-10-17", "total_page_count": 14590, "net_increase": 0}, {"date": "2026-10-18", "total_page_count": 14599, "net_increase": 9}, {"date": "2026-10-19", "total_page_count": 14601, "net_increase": 2}, {"date": "2026-10-20", "total_page_count": 14613, "net_increase": 12}, {"date": "2026-10-21", "total_page_count": 14637, "net_increase": 24}, {"date": "2026-10-22", "total_page_count": 14653, "net_increase": 16}, {"date": "2026-10-23", "total_page_count": 14653, "net_increase": 0}, {"date": "2026-10-24", "total_page_count": 14664, "net_increase": 11}, {"date": "2026-10-25", "total_page_count": 14680, "net_increase": 16}, {"date": "2026-10-26", "total_page_count": 14685, "net_increase": 5}, {"date": "2026-10-27", "total_page_count": 14706, "net_increase": 21}, {"date": "2026-10-28", "total_page_count": 14717, "net_increase": 11}, {"date": "2026-10-29", "total_page_count": 14717, "net_increase": 0}, {"date": "2026-10-30", "total_page_count": 14717, "net_increase": 0}, {"date": "2026-10-31", "total_page_count": 14717, "net_increase": 0}, {"date": "2026-11-01", "total_page_count": 14740, "net_increase": 23}, {"date": "2026-11-02", "total_page_count": 14742, "net_increase": 2}, {"date": "2026-11-03", "total_page_count": 14760, "net_increase": 18}, {"date": "2026-11-04", "total_page_count": 14762, "net_increase": 2}, {"date": "2026-11-05", "total_page_count": 14768, "net_increase": 6}, {"date": "2026-11-06", "total_page_count": 14768, "net_increase": 0}, {"date": "2026-11-07", "total_page_count": 14771, "net_increase": 3}, {"date": "2026-11-08", "total_page_count": 14912, "net_increase": 141}, {"date": "2026-11-09", "total_page_count": 14912, "net_increase": 0}, {"date": "2026-11-10", "total_page_count": 14912, "net_increase": 0}, {"date": "2026-11-11", "total_page_count": 14912, "net_increase": 0}, {"date": "2026-11-12", "total_page_count": 14917, "net_increase": 5}, {"date": "2026-11-13", "total_page_count": 14919, "net_increase": 2}, {"date": "2026-11-14", "total_page_count": 14919, "net_increase": 0}, {"date": "2026-11-15", "total_page_count": 14942, "net_increase": 23}, {"date": "2026-11-16", "total_page_count": 14944, "net_increase": 2}, {"date": "2026-11-17", "total_page_count": 14944, "net_increase": 0}, {"date": "2026-11-18", "total_page_count": 14948, "net_increase": 4}, {"date": "2026-11-19", "total_page_count": 14952, "net_increase": 4}, {"date": "2026-11-20", "total_page_count": 14952, "net_increase": 0}, {"date": "2026-11-21", "total_page_count": 14952, "net_increase": 0}];
+        const summary = {"total_pages": 4560, "total_days": 645, "active_days": 358, "avg_daily": 7.0, "busiest_day_count": 300, "busiest_day_date": "2026-03-22", "first_date": "2025-02-15"};
 
-    function prepareChartData(data, dataKey) {
-        const labels = data.map(item => item.date);
-        const values = data.map(item => item[dataKey]);
-        return {
-            labels: labels,
-            datasets: [{
-                label: dataKey.replace('_', ' ').toUpperCase(),
-                data: values,
-                backgroundColor: 'rgba(54, 162, 235, 0.5)',
-                borderColor: 'rgba(54, 162, 235, 1)',
-                borderWidth: 1
-            }]
-        };
-    }
+        // --- State ---
+        let viewMode = 'daily';
+        let sortColumn = 'date';
+        let sortDir = 'asc';
+        let currentPage = 1;
+        const rowsPerPage = 15;
+        let dashboardMetric = 'net_increase';
+        let historyChart = null;
+        let dashboardChart = null;
+        let monthlyChart = null;
 
-    function createChart(chartData) {
-        const ctx = document.getElementById('myChart').getContext('2d');
-        if (window.myChartInstance) {
-            window.myChartInstance.destroy();
+        // --- Initialize KPI ---
+        function initKPI() {
+            document.getElementById('kpiTotalPages').textContent = summary.total_pages.toLocaleString();
+            document.getElementById('kpiTotalPagesSub').textContent = `Since ${summary.first_date}`;
+
+            document.getElementById('kpiAvgDaily').textContent = summary.avg_daily.toFixed(1);
+            document.getElementById('kpiAvgDailySub').textContent = `Across ${summary.total_days} days`;
+
+            document.getElementById('kpiBusiestDay').textContent = summary.busiest_day_count.toLocaleString();
+            document.getElementById('kpiBusiestDaySub').textContent = summary.busiest_day_date;
+
+            document.getElementById('kpiActiveDays').textContent = summary.active_days;
+            document.getElementById('kpiActiveDaysSub').textContent = `${summary.total_days - summary.active_days} idle days`;
         }
-        window.myChartInstance = new Chart(ctx, {
-            type: 'bar',
-            data: chartData,
-            options: {
-                scales: {
-                    y: {
-                        beginAtZero: true
+
+        // --- Initialize Filters ---
+        function initFilters() {
+            const years = [...new Set(rawData.map(d => d.date.substring(0, 4)))].sort().reverse();
+            const yearSel = document.getElementById('yearFilter');
+            years.forEach(y => {
+                const opt = document.createElement('option');
+                opt.value = y;
+                opt.textContent = y;
+                yearSel.appendChild(opt);
+            });
+        }
+
+        // --- Data helpers ---
+        function getFilteredData() {
+            const yearVal = document.getElementById('yearFilter').value;
+            const monthVal = document.getElementById('monthFilter').value;
+
+            let filtered = rawData.filter(d => {
+                if (yearVal !== 'all' && !d.date.startsWith(yearVal)) return false;
+                if (monthVal !== 'all' && d.date.substring(5, 7) !== monthVal) return false;
+                return true;
+            });
+
+            // Update month filter based on year
+            updateMonthFilter(yearVal);
+
+            if (viewMode === 'monthly') {
+                return aggregateMonthly(filtered);
+            }
+            return filtered;
+        }
+
+        function updateMonthFilter(yearVal) {
+            const monthSel = document.getElementById('monthFilter');
+            const currentMonth = monthSel.value;
+            const months = new Set();
+            rawData.forEach(d => {
+                if (yearVal === 'all' || d.date.startsWith(yearVal)) {
+                    months.add(d.date.substring(5, 7));
+                }
+            });
+            const sorted = [...months].sort();
+            monthSel.innerHTML = '<option value="all">All Months</option>';
+            sorted.forEach(m => {
+                const opt = document.createElement('option');
+                opt.value = m;
+                const date = new Date(2000, parseInt(m) - 1, 1);
+                opt.textContent = date.toLocaleString('en', { month: 'long' });
+                if (m === currentMonth) opt.selected = true;
+                monthSel.appendChild(opt);
+            });
+        }
+
+        function aggregateMonthly(data) {
+            const agg = {};
+            data.forEach(item => {
+                const key = item.date.substring(0, 7);
+                if (!agg[key]) {
+                    agg[key] = { date: key, net_increase: 0, total_page_count: 0 };
+                }
+                agg[key].net_increase += item.net_increase;
+                agg[key].total_page_count = item.total_page_count;
+            });
+            return Object.values(agg).sort((a, b) => a.date.localeCompare(b.date));
+        }
+
+        // --- Chart rendering ---
+        function renderDashboardChart() {
+            const last30 = rawData.slice(-30);
+            const labels = last30.map(d => d.date.substring(5));
+            const values = last30.map(d => d[dashboardMetric]);
+
+            if (dashboardChart) dashboardChart.destroy();
+
+            const ctx = document.getElementById('dashboardChart').getContext('2d');
+            const isCumulative = dashboardMetric === 'total_page_count';
+
+            dashboardChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: isCumulative ? 'Cumulative Total' : 'Pages Printed',
+                        data: values,
+                        backgroundColor: isCumulative
+                            ? 'rgba(139, 92, 246, 0.7)'
+                            : 'rgba(59, 130, 246, 0.7)',
+                        borderColor: isCumulative
+                            ? 'rgba(139, 92, 246, 1)'
+                            : 'rgba(59, 130, 246, 1)',
+                        borderWidth: 1,
+                        borderRadius: 4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            backgroundColor: '#1a1a2e',
+                            padding: 12,
+                            borderRadius: 8,
+                            titleFont: { size: 13 },
+                            bodyFont: { size: 13 }
+                        }
+                    },
+                    scales: {
+                        y: { beginAtZero: true, grid: { color: '#f3f4f6' } },
+                        x: { grid: { display: false }, ticks: { maxRotation: 45, minRotation: 45, font: { size: 11 } } }
                     }
                 }
+            });
+        }
+
+        function renderMonthlyChart() {
+            const monthly = aggregateMonthly(rawData).slice(-12);
+            const labels = monthly.map(d => {
+                const [y, m] = d.date.split('-');
+                return new Date(y, m - 1).toLocaleString('en', { month: 'short', year: '2-digit' });
+            });
+
+            if (monthlyChart) monthlyChart.destroy();
+
+            const ctx = document.getElementById('monthlyChart').getContext('2d');
+            monthlyChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Monthly Pages',
+                        data: monthly.map(d => d.net_increase),
+                        backgroundColor: 'rgba(16, 185, 129, 0.7)',
+                        borderColor: 'rgba(16, 185, 129, 1)',
+                        borderWidth: 1,
+                        borderRadius: 4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            backgroundColor: '#1a1a2e',
+                            padding: 12,
+                            borderRadius: 8
+                        }
+                    },
+                    scales: {
+                        y: { beginAtZero: true, grid: { color: '#f3f4f6' } },
+                        x: { grid: { display: false } }
+                    }
+                }
+            });
+        }
+
+        function renderHistoryChart() {
+            const data = getFilteredData();
+            if (data.length === 0) {
+                if (historyChart) { historyChart.destroy(); historyChart = null; }
+                return;
             }
-        });
-    }
 
-    function switchData(dataKey) {
-        currentData = dataKey;
-        const chartData = prepareChartData(data, dataKey);
-        createChart(chartData);
-    }
+            const labels = data.map(d => {
+                if (viewMode === 'monthly') {
+                    const [y, m] = d.date.split('-');
+                    return new Date(y, m - 1).toLocaleString('en', { month: 'short', year: '2-digit' });
+                }
+                return d.date.substring(5);
+            });
 
-    // Initial chart setup
-    switchData(currentData);
+            if (historyChart) historyChart.destroy();
+
+            const ctx = document.getElementById('historyChart').getContext('2d');
+            historyChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Pages Printed',
+                        data: data.map(d => d.net_increase),
+                        backgroundColor: 'rgba(59, 130, 246, 0.6)',
+                        borderColor: 'rgba(59, 130, 246, 1)',
+                        borderWidth: 1,
+                        borderRadius: 4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            backgroundColor: '#1a1a2e',
+                            padding: 12,
+                            borderRadius: 8,
+                            callbacks: {
+                                title: function(ctx) {
+                                    return data[ctx[0].dataIndex].date;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: { beginAtZero: true, grid: { color: '#f3f4f6' } },
+                        x: { grid: { display: false }, ticks: { font: { size: 11 } } }
+                    }
+                }
+            });
+        }
+
+        // --- Table rendering ---
+        function getSortedData() {
+            const data = getFilteredData();
+            return data.sort((a, b) => {
+                let valA = a[sortColumn];
+                let valB = b[sortColumn];
+                if (typeof valA === 'string') {
+                    return sortDir === 'asc' ? valA.localeCompare(valB) : valB.localeCompare(valA);
+                }
+                return sortDir === 'asc' ? valA - valB : valB - valA;
+            });
+        }
+
+        function getBadgeClass(val) {
+            if (val === 0) return 'badge-zero';
+            if (val < 10) return 'badge-low';
+            if (val < 30) return 'badge-mid';
+            if (val < 80) return 'badge-high';
+            return 'badge-peak';
+        }
+
+        function renderTable() {
+            const data = getSortedData();
+            const tbody = document.getElementById('dataTableBody');
+            const totalPages = Math.ceil(data.length / rowsPerPage);
+
+            if (currentPage > totalPages) currentPage = 1;
+            if (currentPage < 1) currentPage = 1;
+
+            const start = (currentPage - 1) * rowsPerPage;
+            const pageData = data.slice(start, start + rowsPerPage);
+
+            if (data.length === 0) {
+                tbody.innerHTML = `
+                    <tr><td colspan="3">
+                        <div class="empty-state">
+                            <div class="emoji">📭</div>
+                            <div class="msg">No data for the selected filter</div>
+                        </div>
+                    </td></tr>`;
+                document.getElementById('pageInfo').textContent = '';
+                document.getElementById('prevBtn').disabled = true;
+                document.getElementById('nextBtn').disabled = true;
+                return;
+            }
+
+            tbody.innerHTML = pageData.map(item => `
+                <tr>
+                    <td>${item.date}</td>
+                    <td><span class="badge ${getBadgeClass(item.net_increase)}">${item.net_increase}</span></td>
+                    <td>${item.total_page_count.toLocaleString()}</td>
+                </tr>
+            `).join('');
+
+            document.getElementById('pageInfo').textContent = `Page ${currentPage} of ${totalPages} (${data.length} records)`;
+            document.getElementById('prevBtn').disabled = currentPage === 1;
+            document.getElementById('nextBtn').disabled = currentPage === totalPages;
+
+            // Update sort indicators
+            document.querySelectorAll('thead th').forEach(th => {
+                th.classList.remove('sorted');
+                th.querySelector('.sort-arrow').textContent = '';
+            });
+            const thIdx = sortColumn === 'date' ? 0 : sortColumn === 'net_increase' ? 1 : 2;
+            const ths = document.querySelectorAll('thead th');
+            ths[thIdx].classList.add('sorted');
+            ths[thIdx].querySelector('.sort-arrow').textContent = sortDir === 'asc' ? '▲' : '▼';
+        }
+
+        // --- Event handlers ---
+        function switchDashboardMetric(metric, btn) {
+            dashboardMetric = metric;
+            document.querySelectorAll('.card-header .tabs .tab').forEach(t => t.classList.remove('active'));
+            btn.classList.add('active');
+            renderDashboardChart();
+        }
+
+        function setViewMode(mode, btn) {
+            viewMode = mode;
+            document.getElementById('btnDaily').classList.remove('active');
+            document.getElementById('btnMonthly').classList.remove('active');
+            btn.classList.add('active');
+            currentPage = 1;
+            renderHistoryChart();
+            renderTable();
+        }
+
+        function applyFilter() {
+            currentPage = 1;
+            renderHistoryChart();
+            renderTable();
+        }
+
+        function resetFilter() {
+            document.getElementById('yearFilter').value = 'all';
+            document.getElementById('monthFilter').innerHTML = '<option value="all">All Months</option>';
+            document.getElementById('monthFilter').value = 'all';
+            currentPage = 1;
+            renderHistoryChart();
+            renderTable();
+        }
+
+        function sortBy(col) {
+            if (sortColumn === col) {
+                sortDir = sortDir === 'asc' ? 'desc' : 'asc';
+            } else {
+                sortColumn = col;
+                sortDir = 'asc';
+            }
+            renderTable();
+        }
+
+        function changePage(dir) {
+            const data = getSortedData();
+            const totalPages = Math.ceil(data.length / rowsPerPage);
+            if (dir === 'prev' && currentPage > 1) currentPage--;
+            else if (dir === 'next' && currentPage < totalPages) currentPage++;
+            renderTable();
+        }
+
+        // --- Initialize ---
+        initKPI();
+        initFilters();
+        renderDashboardChart();
+        renderMonthlyChart();
+        renderHistoryChart();
+        renderTable();
     </script>
 </body>
 </html>
